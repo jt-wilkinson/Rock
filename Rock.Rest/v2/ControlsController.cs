@@ -5165,40 +5165,43 @@ namespace Rock.Rest.v2
         #region Get Groups
 
         [HttpGet]
-        [System.Web.Http.Route("api/v2/Controls/GetSmallGroups")]
+        [Route("GetSmallGroups")]
         public IHttpActionResult GetSmallGroups(bool includeInactive = false, string searchTerm = "")
         {
             try
             {
-                var rockContext = new Rock.Data.RockContext();
-                var groupService = new GroupService(rockContext);
-
-                var query = groupService.Queryable()
-                    //small group guid, decent identification
-                    .Where(g => g.GroupType.Guid == new Guid("50FCFB30-F51A-49DF-86F4-2B176EA1820B"));
-
-                if (!includeInactive)
+                using (var rockContext = new RockContext())
                 {
-                    query = query.Where(g => g.IsActive);
-                }
+                    var groupService = new GroupService(rockContext);
 
-                if (!string.IsNullOrWhiteSpace(searchTerm))
-                {
-                    query = query.Where(g => g.Name.Contains(searchTerm));
-                }
-                //query prereqs
-                var result = query
-                    .OrderBy(g => g.Name)
-                    .Select(g => new
+                    var smallGroupTypeGuid = new Guid("50FCFB30-F51A-49DF-86F4-2B176EA1820B");
+
+                    var query = groupService.Queryable()
+                        .Where(g => g.GroupType.Guid == smallGroupTypeGuid);
+
+                    if (!includeInactive)
                     {
-                        g.Guid,
-                        g.Name,
-                        g.IsActive,
-                        MembersCount = g.Members.Count
-                    })
-                    .ToList();
+                        query = query.Where(g => g.IsActive);
+                    }
 
-                return Ok(result);
+                    if (!string.IsNullOrWhiteSpace(searchTerm))
+                    {
+                        query = query.Where(g => g.Name.Contains(searchTerm));
+                    }
+
+                    var result = query
+                        .OrderBy(g => g.Name)
+                        .Select(g => new
+                        {
+                            g.Guid,
+                            g.Name,
+                            g.IsActive,
+                            MembersCount = g.Members.Count
+                        })
+                        .ToList();
+
+                    return Ok(result);
+                }
             }
             catch (Exception ex)
             {
