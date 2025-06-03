@@ -1,0 +1,70 @@
+<template>
+    <RockFormField v-bind="fieldProps" :modelValue="internalGroupValue" name="small-group-picker">
+        <BaseAsyncPicker
+            v-model="internalGroupValue"
+            v-bind="standardProps"
+            rules=""
+            label="Small Group"
+            :displayStyle="PickerDisplayStyle.Condensed"
+            :items="actualGroupItems"
+            :multiple="false" />
+    </RockFormField>
+</template>
+
+<script setup="" lang="ts">
+    import { standardAsyncPickerProps, useStandardAsyncPickerProps, useStandardRockFormFieldProps, useVModelPassthrough } from "@Obsidian/Utility/component";
+    import { useHttp } from "@Obsidian/Utility/http";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { PropType, ref, computed } from "vue";
+    import BaseAsyncPicker from "./baseAsyncPicker.obs";
+    import RockFormField from "./rockFormField.obs";
+    import { PickerDisplayStyle } from "@Obsidian/Enums/Controls/pickerDisplayStyle";
+
+    const props = defineProps({
+    modelValue: {
+    type: Object as () => ListItemBag | ListItemBag[] | null,
+    required: false
+    },
+    includeInactive: {
+    type: Boolean,
+    default: false
+    },
+    ...standardAsyncPickerProps
+    });
+
+    const emit = defineEmits<{
+        (e: "update:modelValue", value: ListItemBag | null): void
+    }>();
+
+    const standardProps = useStandardAsyncPickerProps(props);
+    const fieldProps = useStandardRockFormFieldProps(props);
+    const http = useHttp();
+
+    const internalGroupValue = useVModelPassthrough(props, "modelValue", emit);
+
+    const actualGroupItems = computed((): () => Promise<ListItemBag[]> => {
+        return async () => {
+        try {
+        const response = await http.get<any[]>("/api/v2/Controls/GetSmallGroups", {
+                    params: {
+                        includeInactive: props.includeInactive
+                    }
+                });
+                // standard error handling - JW
+                if (!response.isSuccess || !response.data) {
+                    console.error(response.errorMessage ?? "Error loading small groups.");
+                    return [];
+                }
+
+                return response.data.map(g => ({
+                    value: g.Guid,
+                    text: g.Name,
+                    category: g.IsActive ? "Active" : "Inactive"
+                })) as ListItemBag[];
+            } catch (e) {
+                console.error("Failed to fetch groups.", e);
+                return [];
+            }
+        };
+    });
+</script>
