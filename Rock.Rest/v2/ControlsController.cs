@@ -27,6 +27,7 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Web.Http;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -5157,6 +5158,52 @@ namespace Rock.Rest.v2
                 CenterLongitude = centerLongitude,
                 GoogleMapId = mapId
             } );
+        }
+
+        #endregion
+
+        #region Get Groups
+
+        [HttpGet]
+        [System.Web.Http.Route("api/v2/Controls/GetSmallGroups")]
+        public IHttpActionResult GetSmallGroups(bool includeInactive = false, string searchTerm = "")
+        {
+            try
+            {
+                var rockContext = new Rock.Data.RockContext();
+                var groupService = new GroupService(rockContext);
+
+                var query = groupService.Queryable()
+                    //small group guid, decent identification
+                    .Where(g => g.GroupType.Guid == new Guid("50FCFB30-F51A-49DF-86F4-2B176EA1820B"));
+
+                if (!includeInactive)
+                {
+                    query = query.Where(g => g.IsActive);
+                }
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    query = query.Where(g => g.Name.Contains(searchTerm));
+                }
+                //query prereqs
+                var result = query
+                    .OrderBy(g => g.Name)
+                    .Select(g => new
+                    {
+                        g.Guid,
+                        g.Name,
+                        g.IsActive,
+                        MembersCount = g.Members.Count
+                    })
+                    .ToList();
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return InternalServerError(ex);
+            }
         }
 
         #endregion
